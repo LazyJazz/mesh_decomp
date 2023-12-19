@@ -20,3 +20,8 @@ struct AngDist {
                    const glm::vec3 &v0,
                    const glm::vec3 &v1) const;
 };
+
+float dual_face_ang(const glm::vec3 &m0,
+                    const glm::vec3 &m1,
+                    const glm::vec3 &v0,
+                    const glm::vec3 &v1);

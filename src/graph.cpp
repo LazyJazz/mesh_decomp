@@ -206,7 +206,6 @@ float Dinic(NetworkFlowGraph &graph, int source, int tank) {
     for (auto &node : graph.first) {
       dist[node.first] = -1;
     }
-    printf("%f\n", res);
   }
 
   return res;

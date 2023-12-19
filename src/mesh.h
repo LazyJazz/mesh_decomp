@@ -95,12 +95,23 @@ class Mesh {
 
   void store_ply(const std::string &ply_path, const glm::vec3 &color) const;
 
+  [[nodiscard]] Graph<float> build_ang_graph() const;
+
   [[nodiscard]] Graph<DualEdge> build_dual_graph(float eta) const;
 
   [[nodiscard]] Graph<float> build_dual_graph(float eta, float delta) const;
 
   static Graph<float> convert_graph(const Graph<DualEdge> &origin_graph,
                                     float delta);
+
+  static Graph<float> convert_graph(const Graph<DualEdge> &origin_graph,
+                                    float delta,
+                                    float geod_dist_mean,
+                                    float ang_dist_mean);
+
+  static void graph_dist_mean(const Graph<DualEdge> &origin_graph,
+                              float &geod_dist_mean,
+                              float &ang_dist_mean);
 
  private:
   std::vector<glm::vec3> vertices_;

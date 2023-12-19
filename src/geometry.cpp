@@ -30,6 +30,26 @@ float ang_dist(const glm::vec3 &m0,
   return AngDist(0.5f)(m0, m1, v0, v1);
 }
 
+float dual_face_ang(const glm::vec3 &m0,
+                    const glm::vec3 &m1,
+                    const glm::vec3 &v0,
+                    const glm::vec3 &v1) {
+  auto c0 = (m0 + m1 + v0) / 3.f;
+  auto c1 = (m0 + m1 + v1) / 3.f;
+  auto d = m1 - m0;
+  auto n0 = glm::cross(d, v0 - m1);
+  auto n1 = glm::cross(-d, v1 - m0);
+  if (glm::length(n0) < eps)
+    return 0;
+  if (glm::length(n1) < eps)
+    return 0;
+  n0 = glm::normalize(n0);
+  n1 = glm::normalize(n1);
+  float cos_ang = glm::dot(n0, n1);
+  cos_ang = glm::max(-1.f, glm::min(1.f, cos_ang));
+  return glm::acos(cos_ang);
+}
+
 float AngDist::operator()(const glm::vec3 &m0,
                           const glm::vec3 &m1,
                           const glm::vec3 &v0,
