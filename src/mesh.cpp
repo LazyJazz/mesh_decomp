@@ -5,6 +5,7 @@
 #include "assimp/scene.h"
 #include "fstream"
 #include "map"
+#include "random"
 #include "set"
 #include "unordered_map"
 
@@ -139,14 +140,12 @@ void Mesh::store_ply(const std::string &ply_path,
 }
 
 Graph<float> Mesh::build_dual_graph(float eta, float delta) const {
-  std::map<std::pair<int, int>, std::vector<std::pair<int, int>>> edge_to_faces;
+  return convert_graph(build_dual_graph(eta), delta);
+}
 
-  struct DualEdge {
-    float geod_dist;
-    float ang_dist;
-  };
-
+Graph<Mesh::DualEdge> Mesh::build_dual_graph(float eta) const {
   Graph<DualEdge> origin_graph;
+  std::map<std::pair<int, int>, std::vector<std::pair<int, int>>> edge_to_faces;
   auto local_ang_dist = AngDist(eta);
   auto match_faces = [&](int m0, int m1, int v0, int face_id) {
     auto &neighbor_faces = edge_to_faces[{m1, m0}];
@@ -171,6 +170,11 @@ Graph<float> Mesh::build_dual_graph(float eta, float delta) const {
     match_faces(face.v3, face.v1, face.v2, i);
   }
 
+  return origin_graph;
+}
+
+Graph<float> Mesh::convert_graph(const Graph<DualEdge> &origin_graph,
+                                 float delta) {
   float geod_dist_sum = 0;
   float ang_dist_sum = 0;
   int num_edges = 0;
@@ -211,4 +215,76 @@ Graph<float> Mesh::build_dual_graph(float eta, float delta) const {
   printf("mean_weight: %f\n", sum_weight / num_edges);
 
   return result;
+}
+
+void MeshAssembler::AddFace(const glm::vec3 &v1,
+                            const glm::vec3 &v2,
+                            const glm::vec3 &v3) {
+  auto vertex_index = [&](const glm::vec3 &v) {
+    if (vertex_to_index_.count(v) == 0) {
+      vertex_to_index_[v] = vertices_.size();
+      vertices_.push_back(v);
+    }
+    return vertex_to_index_[v];
+  };
+  faces_.emplace_back(vertex_index(v1), vertex_index(v2), vertex_index(v3));
+}
+
+Mesh MeshAssembler::GetMesh() const {
+  return Mesh{vertices_, faces_};
+}
+
+void store_combined_ply(const std::string &ply_path,
+                        const std::vector<Mesh> &meshes) {
+  std::ofstream ply_file(ply_path);
+
+  int num_vertices = 0;
+  int num_faces = 0;
+
+  for (const auto &mesh : meshes) {
+    num_vertices += mesh.vertices().size();
+    num_faces += mesh.faces().size();
+  }
+
+  ply_file << "ply\n"
+              "format ascii 1.0\n"
+              "element vertex "
+           << num_vertices
+           << "\n"
+              "property float x\n"
+              "property float y\n"
+              "property float z\n"
+              "property uchar red\n"
+              "property uchar green\n"
+              "property uchar blue\n"
+              "element face "
+           << num_faces
+           << "\n"
+              "property list uchar int vertex_index\n"
+              "end_header\n";
+
+  std::mt19937 rng(0);
+
+  for (const auto &mesh : meshes) {
+    glm::vec3 color =
+        glm::vec3(std::uniform_real_distribution<float>(0.0f, 1.0f)(rng),
+                  std::uniform_real_distribution<float>(0.0f, 1.0f)(rng),
+                  std::uniform_real_distribution<float>(0.0f, 1.0f)(rng));
+    for (const auto &v : mesh.vertices()) {
+      ply_file << v.x << " " << v.y << " " << v.z << " " << (int)(color.r * 255)
+               << " " << (int)(color.g * 255) << " " << (int)(color.b * 255)
+               << "\n";
+    }
+  }
+
+  int offset = 0;
+  for (const auto &mesh : meshes) {
+    for (const auto &f : mesh.faces()) {
+      ply_file << "3 " << f.v1 + offset << " " << f.v2 + offset << " "
+               << f.v3 + offset << "\n";
+    }
+    offset += mesh.vertices().size();
+  }
+
+  ply_file.close();
 }

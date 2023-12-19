@@ -36,11 +36,79 @@ std::vector<int> GetReps(const Graph<float> &graph) {
 }  // namespace
 
 std::vector<Mesh> K_decomp(const Mesh &mesh) {
-  auto graph = mesh.build_dual_graph(0.5, 0.5);
+  auto origin_graph = mesh.build_dual_graph(0.3);
+  auto graph = Mesh::convert_graph(origin_graph, 0.7);
   auto reps = GetReps(graph);
+
   for (auto rep : reps) {
     printf("%d\n", rep);
   }
+
+  std::vector<std::map<int, float>> shortest_paths;
+  shortest_paths.reserve(reps.size());
+
+  for (auto rep : reps) {
+    shortest_paths.push_back(Dijkstra(graph, rep));
+  }
+
+  std::vector<std::pair<int, int>> belongs(mesh.faces().size(), {-1, -1});
+  std::vector<MeshAssembler> assemblers;
+  assemblers.resize(reps.size() + 1);
+  auto &vertices = mesh.vertices();
+  auto &faces = mesh.faces();
+
+  auto assign_face = [&](int rep_id, int face_id) {
+    assemblers[rep_id].AddFace(vertices[faces[face_id].v1],
+                               vertices[faces[face_id].v2],
+                               vertices[faces[face_id].v3]);
+  };
+
+  for (auto &node : graph.edges) {
+    int x = node.first;
+    // Find the first two shortest
+    float min_dist = std::numeric_limits<float>::infinity();
+    float second_min_dist = std::numeric_limits<float>::infinity();
+    int min_rep = -1;
+    int second_min_rep = -1;
+    for (int i = 0; i < reps.size(); i++) {
+      float dist = shortest_paths[i][x];
+      if (dist < min_dist) {
+        second_min_dist = min_dist;
+        second_min_rep = min_rep;
+        min_dist = dist;
+        min_rep = i;
+      } else if (dist < second_min_dist) {
+        second_min_dist = dist;
+        second_min_rep = i;
+      }
+    }
+
+    if (second_min_dist < 1.2f * min_dist) {
+      if (min_rep > second_min_rep) {
+        std::swap(min_rep, second_min_rep);
+      }
+      belongs[x] = {min_rep, second_min_rep};
+    } else {
+      belongs[x] = {min_rep, min_rep};
+      assign_face(min_rep, x);
+    }
+  }
+
+  int source = faces.size();
+  int tank = faces.size() + 1;
+
+  for (int i = 0; i < reps.size(); i++) {
+    for (int j = i + 1; j < reps.size(); j++) {
+      for (int face_id = 0; face_id < faces.size(); face_id++) {
+      }
+    }
+  }
+
   std::vector<Mesh> results;
+  results.reserve(reps.size() + 1);
+  for (auto &assembler : assemblers) {
+    results.emplace_back(assembler.GetMesh());
+  }
+
   return results;
 }

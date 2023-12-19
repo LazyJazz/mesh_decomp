@@ -72,6 +72,11 @@ class Mesh {
     }
   };
 
+  struct DualEdge {
+    float geod_dist;
+    float ang_dist;
+  };
+
   explicit Mesh(const std::vector<glm::vec3> &vertices = {},
                 const std::vector<Face> &faces = {});
 
@@ -90,10 +95,25 @@ class Mesh {
 
   void store_ply(const std::string &ply_path, const glm::vec3 &color) const;
 
-  [[nodiscard]] Graph<float> build_dual_graph(float eta = 0.5,
-                                              float delta = 0.5) const;
+  [[nodiscard]] Graph<DualEdge> build_dual_graph(float eta) const;
+
+  [[nodiscard]] Graph<float> build_dual_graph(float eta, float delta) const;
+
+  static Graph<float> convert_graph(const Graph<DualEdge> &origin_graph,
+                                    float delta);
 
  private:
   std::vector<glm::vec3> vertices_;
   std::vector<Face> faces_;
 };
+
+struct MeshAssembler {
+  std::map<glm::vec3, int, vec3_lt> vertex_to_index_{};
+  std::vector<glm::vec3> vertices_{};
+  std::vector<Mesh::Face> faces_{};
+  void AddFace(const glm::vec3 &v1, const glm::vec3 &v2, const glm::vec3 &v3);
+  [[nodiscard]] Mesh GetMesh() const;
+};
+
+void store_combined_ply(const std::string &ply_path,
+                        const std::vector<Mesh> &meshes);
