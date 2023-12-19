@@ -1,13 +1,17 @@
 #include "geometry.h"
 
-float geod_dict(const glm::vec3 &m0,
+namespace {
+const float eps = 1e-6f;
+}
+
+float geod_dist(const glm::vec3 &m0,
                 const glm::vec3 &m1,
                 const glm::vec3 &v0,
                 const glm::vec3 &v1) {
   auto c0 = (m0 + m1 + v0) / 3.f;
   auto c1 = (m0 + m1 + v1) / 3.f;
   auto d = m1 - m0;
-  if (glm::length(d) < 1e-6f) {
+  if (glm::length(d) < eps) {
     return glm::length(c0 - m0) + glm::length(c1 - m1);
   }
   auto n = glm::normalize(d);
@@ -19,14 +23,31 @@ float geod_dict(const glm::vec3 &m0,
   return sqrt((r0 + r1) * (r0 + r1) + c * c);
 }
 
-float ang_dict(const glm::vec3 &m0,
+float ang_dist(const glm::vec3 &m0,
                const glm::vec3 &m1,
                const glm::vec3 &v0,
                const glm::vec3 &v1) {
+  return AngDist(0.5f)(m0, m1, v0, v1);
+}
+
+float AngDist::operator()(const glm::vec3 &m0,
+                          const glm::vec3 &m1,
+                          const glm::vec3 &v0,
+                          const glm::vec3 &v1) const {
   auto c0 = (m0 + m1 + v0) / 3.f;
   auto c1 = (m0 + m1 + v1) / 3.f;
   auto d = m1 - m0;
   auto n0 = glm::cross(d, v0 - m1);
   auto n1 = glm::cross(-d, v1 - m0);
-  return 0;
+  if (glm::length(n0) < eps)
+    return 0;
+  if (glm::length(n1) < eps)
+    return 0;
+  n0 = glm::normalize(n0);
+  n1 = glm::normalize(n1);
+  float res = 1.0f - glm::dot(n0, n1);
+  if (glm::dot(c1 - c0, n0) < 0) {
+    res = eta * res;
+  }
+  return res;
 }

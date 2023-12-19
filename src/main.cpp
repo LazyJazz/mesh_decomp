@@ -1,9 +1,10 @@
 #include <iostream>
 
+#include "decomp.h"
 #include "mesh.h"
 
 int main() {
   Mesh mesh;
-  mesh.load_ply(ASSETS_DIR "bunny.ply");
-  mesh.store_ply(ASSETS_DIR "bunny2.ply", glm::vec3{0, 1, 0});
+  mesh.load_ply(ASSETS_DIR "cat.ply");
+  K_decomp(mesh);
 }

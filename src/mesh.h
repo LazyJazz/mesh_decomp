@@ -1,6 +1,7 @@
 #pragma once
 #include "geometry.h"
 #include "glm/glm.hpp"
+#include "graph.h"
 #include "iostream"
 #include "vector"
 
@@ -79,9 +80,6 @@ class Mesh {
   [[nodiscard]] const std::vector<glm::vec3> &vertices() const {
     return vertices_;
   }
-  [[nodiscard]] const std::vector<Edge> &edges() const {
-    return edges_;
-  }
   [[nodiscard]] const std::vector<Face> &faces() const {
     return faces_;
   }
@@ -92,8 +90,10 @@ class Mesh {
 
   void store_ply(const std::string &ply_path, const glm::vec3 &color) const;
 
+  [[nodiscard]] Graph<float> build_dual_graph(float eta = 0.5,
+                                              float delta = 0.5) const;
+
  private:
   std::vector<glm::vec3> vertices_;
-  std::vector<Edge> edges_;
   std::vector<Face> faces_;
 };
