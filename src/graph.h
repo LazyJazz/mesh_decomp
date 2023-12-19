@@ -25,9 +25,13 @@ std::map<int, float> Dijkstra(const Graph<float> &graph,
 
 std::map<int, std::map<int, float>> FloydWarshall(const Graph<float> &graph);
 
+std::map<int, std::map<int, float>> DijkstraComplete(const Graph<float> &graph);
+
 // Make a function that finds graph center
 // Path: src/graph.cpp
 int FindGraphCenter(const Graph<float> &graph);
+
+int FindGraphCenterLocal(const Graph<float> &graph);
 
 struct NetworkFlowGraph {
   struct Edge {

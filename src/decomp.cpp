@@ -5,7 +5,7 @@
 namespace {
 std::vector<int> GetReps(const Graph<float> &graph) {
   std::vector<int> reps;
-  reps.push_back(FindGraphCenter(graph));
+  reps.push_back(FindGraphCenterLocal(graph));
 
   if (reps[0] == -1) {
     std::cerr << "Graph is not connected" << std::endl;
@@ -39,8 +39,8 @@ std::vector<int> GetReps(const Graph<float> &graph) {
 
 std::vector<Mesh> K_decomp(const Mesh &mesh) {
   const float inf = 1e12f;
-  auto origin_graph = mesh.build_dual_graph(0.3);
-  auto graph = Mesh::convert_graph(origin_graph, 0.7);
+  auto origin_graph = mesh.build_dual_graph(0.5);
+  auto graph = Mesh::convert_graph(origin_graph, 0.5);
   auto reps = GetReps(graph);
 
   for (auto rep : reps) {
@@ -56,7 +56,7 @@ std::vector<Mesh> K_decomp(const Mesh &mesh) {
 
   std::vector<std::pair<int, int>> belongs(mesh.faces().size(), {-1, -1});
   std::vector<MeshAssembler> assemblers;
-  assemblers.resize(reps.size() + 1);
+  assemblers.resize(reps.size() + 2);
   auto &vertices = mesh.vertices();
   auto &faces = mesh.faces();
 
@@ -71,10 +71,12 @@ std::vector<Mesh> K_decomp(const Mesh &mesh) {
     // Find the first two shortest
     float min_dist = std::numeric_limits<float>::infinity();
     float second_min_dist = std::numeric_limits<float>::infinity();
+    float sum_dist_inv = 0.0f;
     int min_rep = -1;
     int second_min_rep = -1;
     for (int i = 0; i < reps.size(); i++) {
       float dist = shortest_paths[i][x];
+      sum_dist_inv += 1.0f / dist;
       if (dist < min_dist) {
         second_min_dist = min_dist;
         second_min_rep = min_rep;
@@ -86,7 +88,16 @@ std::vector<Mesh> K_decomp(const Mesh &mesh) {
       }
     }
 
-    if (second_min_dist < 1.2f * min_dist) {
+    if (min_dist == 0.0f) {
+      belongs[x] = {min_rep, min_rep};
+      assign_face(min_rep, x);
+      continue;
+    }
+
+    float min_prob = (1.0f / min_dist) / sum_dist_inv;
+    float second_min_prob = (1.0f / second_min_dist) / sum_dist_inv;
+
+    if (min_prob - second_min_prob < 0.1) {
       if (min_rep > second_min_rep) {
         std::swap(min_rep, second_min_rep);
       }
@@ -167,7 +178,7 @@ std::vector<Mesh> K_decomp(const Mesh &mesh) {
   }
 
   std::vector<Mesh> results;
-  results.reserve(reps.size() + 1);
+  results.reserve(reps.size() + 2);
   for (auto &assembler : assemblers) {
     results.emplace_back(assembler.GetMesh());
   }
