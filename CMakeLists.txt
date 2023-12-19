@@ -6,4 +6,6 @@ project(mesh_decomp)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+
 add_subdirectory(src)
