@@ -1,5 +1,9 @@
 #include "graph.h"
 
+#include <functional>
+
+#include "set"
+
 std::map<int, float> Dijkstra(const Graph<float> &graph, int start) {
   return Dijkstra(graph, std::vector<int>{start});
 }
@@ -108,4 +112,70 @@ int FindGraphCenter(const Graph<float> &graph) {
     }
   }
   return result;
+}
+
+float Dinic(NetworkFlowGraph &graph, int source, int tank) {
+  const auto inf = std::numeric_limits<float>::infinity();
+  const auto eps = 1e-6f;
+  std::map<int, int> dist;
+  for (auto &node : graph.first) {
+    dist[node.first] = -1;
+  }
+
+  auto BFS = [&]() -> bool {
+    std::queue<int> q;
+    q.push(tank);
+    dist[tank] = 0;
+    while (!q.empty()) {
+      auto x = q.front();
+      q.pop();
+      if (x == source) {
+        return true;
+      }
+      for (int i = graph.first[x]; i; i = graph.edges[i].nxt) {
+        auto &edge = graph.edges[i];
+        auto &counter_edge = graph.edges[i ^ 1];
+        if (counter_edge.capacity > counter_edge.flow + eps &&
+            dist[edge.dst] == -1) {
+          dist[edge.dst] = dist[x] + 1;
+          q.push(edge.dst);
+        }
+      }
+    }
+    return false;
+  };
+
+  std::function<float(int, float)> DFS;
+  DFS = [&](int x, float max_flow) {
+    if (x == tank)
+      return max_flow;
+    float res = 0;
+    for (int i = graph.first[x]; i; i = graph.edges[i].nxt) {
+      auto &edge = graph.edges[i];
+      if (edge.capacity > edge.flow + eps && dist[edge.dst] == dist[x] - 1) {
+        float flow =
+            DFS(edge.dst, std::min(max_flow, edge.capacity - edge.flow));
+        if (flow > eps) {
+          edge.flow += flow;
+          graph.edges[i ^ 1].flow -= flow;
+          res += flow;
+          max_flow -= flow;
+          if (max_flow < eps)
+            break;
+        }
+      }
+    }
+    return res;
+  };
+
+  float res = 0.0f;
+
+  while (BFS()) {
+    res += DFS(source, inf);
+    for (auto &node : graph.first) {
+      dist[node.first] = -1;
+    }
+  }
+
+  return res;
 }

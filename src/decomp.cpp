@@ -1,5 +1,7 @@
 #include "decomp.h"
 
+#include "set"
+
 namespace {
 std::vector<int> GetReps(const Graph<float> &graph) {
   std::vector<int> reps;
@@ -36,6 +38,7 @@ std::vector<int> GetReps(const Graph<float> &graph) {
 }  // namespace
 
 std::vector<Mesh> K_decomp(const Mesh &mesh) {
+  const float inf = 1e12f;
   auto origin_graph = mesh.build_dual_graph(0.3);
   auto graph = Mesh::convert_graph(origin_graph, 0.7);
   auto reps = GetReps(graph);
@@ -99,7 +102,66 @@ std::vector<Mesh> K_decomp(const Mesh &mesh) {
 
   for (int i = 0; i < reps.size(); i++) {
     for (int j = i + 1; j < reps.size(); j++) {
+      std::set<int> face_set;
+      auto avg_ang_dist = 0.0f;
+      int num_edges = 0;
+      NetworkFlowGraph subgraph;
       for (int face_id = 0; face_id < faces.size(); face_id++) {
+        if (belongs[face_id].first == i && belongs[face_id].second == j) {
+          face_set.insert(face_id);
+          for (auto &edge : origin_graph.edges[face_id]) {
+            if (belongs[edge.dst].first == i && belongs[edge.dst].second == i) {
+              subgraph.add_edge(source, face_id, inf);
+            } else if (belongs[edge.dst].first == j &&
+                       belongs[edge.dst].second == j) {
+              subgraph.add_edge(face_id, tank, inf);
+            } else if (belongs[edge.dst].first == i &&
+                       belongs[edge.dst].second == j) {
+              avg_ang_dist += edge.content.ang_dist;
+              num_edges++;
+              subgraph.add_edge(face_id, edge.dst, edge.content.ang_dist);
+            }
+          }
+        }
+      }
+
+      if (num_edges) {
+        avg_ang_dist /= (float)num_edges;
+        for (auto &node : subgraph.first) {
+          if (node.first == source || node.first == tank) {
+            continue;
+          }
+          for (int x = node.second; x; x = subgraph.edges[x].nxt) {
+            auto &edge = subgraph.edges[x];
+            if (edge.dst == source || edge.dst == tank) {
+              continue;
+            }
+            if (edge.capacity != 0.0f) {
+              edge.capacity = 1.0f / (1.0f + edge.capacity / avg_ang_dist);
+            }
+          }
+        }
+      }
+
+      Dinic(subgraph, source, tank);
+      std::queue<int> q;
+      q.push(source);
+      while (!q.empty()) {
+        int x = q.front();
+        q.pop();
+        for (int y = subgraph.first[x]; y; y = subgraph.edges[y].nxt) {
+          auto &edge = subgraph.edges[y];
+          if (edge.capacity - edge.flow > 1e-6f &&
+              face_set.find(edge.dst) != face_set.end()) {
+            q.push(edge.dst);
+            assign_face(i, edge.dst);
+            face_set.erase(edge.dst);
+          }
+        }
+      }
+
+      for (auto face : face_set) {
+        assign_face(j, face);
       }
     }
   }
